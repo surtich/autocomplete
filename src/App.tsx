@@ -1,18 +1,26 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import "./App.css";
-import villages from "./villages.json";
+import allVillages from "./villages.json";
 
 type Village = {
   readonly id: string;
   readonly name: string;
 };
 
-const search = (village: string): Village[] =>
-  village.trim()
-    ? villages.filter(({ name }) =>
-        name.toLowerCase().includes(village.toLowerCase())
-      )
-    : [];
+const search = (village: string): Promise<Village[]> =>
+  new Promise(resolve =>
+    setTimeout(
+      () =>
+        resolve(
+          village.trim()
+            ? allVillages.filter(({ name }) =>
+                name.toLowerCase().includes(village.toLowerCase())
+              )
+            : []
+        ),
+      Math.floor(Math.random() * 3) * 1000
+    )
+  );
 
 const Village = ({ id, name }: Village) => (
   <li style={{ width: "300px", textAlign: "left" }} key={id}>
@@ -25,6 +33,10 @@ const Villages = ({ villages }: { villages: Village[] }) => (
 
 const App = () => {
   const [village, setVillage] = useState("");
+  const [villages, setVillages] = useState([] as Village[]);
+  useEffect(() => {
+    search(village).then(result => setVillages(result));
+  }, [village]);
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setVillage(e.target.value);
   };
@@ -36,7 +48,7 @@ const App = () => {
         onChange={handleChange}
         value={village}
       />
-      <Villages villages={search(village)} />
+      <Villages villages={villages} />
     </div>
   );
 };
