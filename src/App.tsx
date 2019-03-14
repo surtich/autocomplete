@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import "./App.css";
 import allVillages from "./villages.json";
 
@@ -30,39 +30,37 @@ const Villages = ({ villages }: { villages: Village[] }) => (
   <ul>{villages.map(Village)}</ul>
 );
 
-const App = () => {
-  const [village, setVillage] = useState("");
-  const [villages, setVillages] = useState([] as Village[]);
-  const [loading, setLoading] = useState(false);
-  useEffect(() => {
-    let didCancel = false;
-    search(village).then(result => {
-      if (!didCancel) {
-        setVillages(result);
-      }
-      setLoading(false);
-    });
-    return () => {
-      didCancel = true;
-    };
-  }, [village]);
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setLoading(true);
-    setVillage(e.target.value);
+class App extends React.Component {
+  state = {
+    village: "",
+    villages: []
   };
-  return (
-    <div className="App">
-      <input
-        type="text"
-        placeholder="village"
-        onChange={handleChange}
-        value={village}
-      />
-      <div>{loading && <span>loading...</span>}</div>
-      <div>{villages.length && <span>Total: {villages.length}</span>}</div>
-      <Villages villages={villages} />
-    </div>
-  );
-};
+
+  handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const village = e.target.value;
+    this.setState({ village });
+    search(village).then(results => {
+      this.setState({
+        villages: results
+      });
+    });
+  };
+
+  render() {
+    const { village, villages } = this.state;
+    return (
+      <div className="App">
+        <input
+          type="text"
+          placeholder="village"
+          onChange={this.handleChange}
+          value={village}
+        />
+        <div>{villages.length && <span>Total: {villages.length}</span>}</div>
+        <Villages villages={villages} />
+      </div>
+    );
+  }
+}
 
 export default App;
