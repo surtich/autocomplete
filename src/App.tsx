@@ -1,6 +1,6 @@
 import React from "react";
-import { from, Subject } from "rxjs";
-import { debounceTime, switchMap, tap } from "rxjs/operators";
+import { from, fromEvent, Observable, Subscription } from "rxjs";
+import { debounceTime, map, switchMap, tap } from "rxjs/operators";
 import "./App.css";
 import allVillages from "./villages.json";
 
@@ -36,57 +36,63 @@ const Villages = ({ villages }: { villages: Village[] }) => (
 
 class App extends React.Component {
   state = {
-    loading: false,
+    searching: false,
     village: "",
     villages: []
   };
 
-  village$: Subject<string>;
+  village$: Observable<Village[]> | undefined;
+  subscriptionVillage$: Subscription | undefined;
+  villageRef: React.RefObject<HTMLInputElement>;
 
   constructor(props: any) {
     super(props);
-    this.village$ = new Subject();
-
-    this.village$
-      .pipe(
-        tap(village => {
-          this.setState({
-            loading: true,
-            village
-          });
-        }),
-        debounceTime(250),
-        tap(() => console.log("Starting search....")),
-        switchMap(village => from(search(village)))
-      )
-      .subscribe(villages => {
-        this.setState({
-          loading: false,
-          villages
-        });
-      });
+    this.villageRef = React.createRef();
   }
 
-  handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const village = e.target.value;
-    this.village$.next(village);
-  };
+  componentDidMount() {
+    this.village$ = fromEvent<React.ChangeEvent<HTMLInputElement>>(
+      this.villageRef.current as HTMLInputElement,
+      "input"
+    ).pipe(
+      map((event: React.ChangeEvent<HTMLInputElement>) => event.target.value),
+      tap(village => {
+        this.setState({
+          searching: true,
+          village
+        });
+      }),
+      debounceTime(250),
+      tap(() => console.log("Starting search....")),
+      switchMap(village => from(search(village)))
+    );
+
+    this.subscriptionVillage$ = this.village$.subscribe(villages => {
+      console.log("End search!");
+      this.setState({
+        searching: false,
+        villages
+      });
+    });
+  }
 
   componentWillUnmount() {
-    this.village$.unsubscribe();
+    if (this.subscriptionVillage$) {
+      this.subscriptionVillage$.unsubscribe();
+    }
   }
 
   render() {
-    const { loading, village, villages } = this.state;
+    const { searching, village, villages } = this.state;
     return (
       <div className="App">
         <input
           type="text"
           placeholder="village"
-          onChange={this.handleChange}
-          value={village}
+          defaultValue={village}
+          ref={this.villageRef}
         />
-        <div>{loading && <span>loading...</span>}</div>
+        <div>{searching && <span>searching...</span>}</div>
         <div>{villages.length && <span>Total: {villages.length}</span>}</div>
         <Villages villages={villages} />
       </div>
