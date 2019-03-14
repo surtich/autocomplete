@@ -1,6 +1,6 @@
 import React from "react";
 import { from, Subject } from "rxjs";
-import { debounceTime, switchMap, tap } from "rxjs/operators";
+import { debounceTime, filter, switchMap, tap } from "rxjs/operators";
 import "./App.css";
 import allVillages from "./villages.json";
 
@@ -105,26 +105,35 @@ class App extends React.Component {
           this.village$ = new Subject();
 
           this.village$.subscribe({
-            complete: () => console.log("Unsubscribed")
+            complete: () => {
+              this.setState({
+                searching: false
+              });
+              console.log("Unsubscribed");
+            }
           });
 
           this.village$
             .pipe(
-              tap(village => {
+              tap(() => {
                 this.setState({
                   searching: true
                 });
               }),
               debounceTime(250),
               tap(() => console.log("Starting search....")),
-              switchMap(village => from(search(village)))
+              switchMap(village => from(search(village))),
+              filter(() => this.state.isActive)
             )
-            .subscribe(villages => {
-              console.log("End search!");
-              this.setState({
-                searching: false,
-                villages
-              });
+            .subscribe({
+              complete: () => console.log("Ubsubscribed!"),
+              next: villages => {
+                console.log("End search!");
+                this.setState({
+                  searching: false,
+                  villages
+                });
+              }
             });
         } else {
           this.village$.complete();
