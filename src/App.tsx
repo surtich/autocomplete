@@ -73,6 +73,7 @@ const Activate = ({
 class App extends React.Component {
   state = {
     isActive: true,
+    lastSearch: "",
     searching: false,
     village: "",
     villages: []
@@ -130,11 +131,15 @@ class App extends React.Component {
               next: villages => {
                 console.log("End search!");
                 this.setState({
+                  lastSearch: this.state.village,
                   searching: false,
                   villages
                 });
               }
             });
+          if (this.state.lastSearch !== this.state.village) {
+            this.village$.next(this.state.village);
+          }
         } else {
           this.village$.complete();
           this.village$.unsubscribe();
