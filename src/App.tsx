@@ -1,6 +1,6 @@
 import React from "react";
-import { from, fromEvent, Observable, Subscription } from "rxjs";
-import { debounceTime, map, switchMap, tap } from "rxjs/operators";
+import { from, Subject } from "rxjs";
+import { debounceTime, switchMap, tap } from "rxjs/operators";
 import "./App.css";
 import allVillages from "./villages.json";
 
@@ -34,64 +34,126 @@ const Villages = ({ villages }: { villages: Village[] }) => (
   <ul>{villages.map(Village)}</ul>
 );
 
+const Activate = ({
+  activate,
+  isActive
+}: {
+  activate: (isActive: boolean) => void;
+  isActive: boolean;
+}) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    activate(e.target.value === "active");
+  };
+  return (
+    <div>
+      <label>
+        <input
+          type="radio"
+          name="activate"
+          value="active"
+          checked={isActive}
+          onChange={handleChange}
+        />
+        Active
+      </label>
+      <label>
+        <input
+          type="radio"
+          name="activate"
+          value="inactive"
+          checked={!isActive}
+          onChange={handleChange}
+        />
+        Inactive
+      </label>
+    </div>
+  );
+};
+
 class App extends React.Component {
   state = {
+    isActive: true,
     searching: false,
     village: "",
     villages: []
   };
 
-  village$: Observable<Village[]> | undefined;
-  subscriptionVillage$: Subscription | undefined;
-  villageRef: React.RefObject<HTMLInputElement>;
+  village$: Subject<string>;
 
   constructor(props: any) {
     super(props);
-    this.villageRef = React.createRef();
+    this.village$ = new Subject();
   }
 
-  componentDidMount() {
-    this.village$ = fromEvent<React.ChangeEvent<HTMLInputElement>>(
-      this.villageRef.current as HTMLInputElement,
-      "input"
-    ).pipe(
-      map((event: React.ChangeEvent<HTMLInputElement>) => event.target.value),
-      tap(village => {
-        this.setState({
-          searching: true,
-          village
-        });
-      }),
-      debounceTime(250),
-      tap(() => console.log("Starting search....")),
-      switchMap(village => from(search(village)))
-    );
-
-    this.subscriptionVillage$ = this.village$.subscribe(villages => {
-      console.log("End search!");
-      this.setState({
-        searching: false,
-        villages
-      });
+  handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const village = e.target.value;
+    this.setState({
+      village
     });
+    if (this.village$ && !this.village$.isStopped) {
+      this.village$.next(village);
+    }
+  };
+
+  activate = (isActive: boolean) => {
+    this.setState(
+      {
+        isActive
+      },
+      () => {
+        if (isActive) {
+          this.village$ = new Subject();
+
+          this.village$.subscribe({
+            complete: () => console.log("Unsubscribed")
+          });
+
+          this.village$
+            .pipe(
+              tap(village => {
+                this.setState({
+                  searching: true
+                });
+              }),
+              debounceTime(250),
+              tap(() => console.log("Starting search....")),
+              switchMap(village => from(search(village)))
+            )
+            .subscribe(villages => {
+              console.log("End search!");
+              this.setState({
+                searching: false,
+                villages
+              });
+            });
+        } else {
+          this.village$.complete();
+          this.village$.unsubscribe();
+        }
+      }
+    );
+  };
+
+  componentDidMount() {
+    this.activate(true);
   }
 
   componentWillUnmount() {
-    if (this.subscriptionVillage$) {
-      this.subscriptionVillage$.unsubscribe();
-    }
+    this.village$.complete();
+    this.village$.unsubscribe();
   }
 
   render() {
-    const { searching, village, villages } = this.state;
+    const { isActive, searching, village, villages } = this.state;
     return (
       <div className="App">
         <input
           type="text"
           placeholder="village"
-          defaultValue={village}
-          ref={this.villageRef}
+          onChange={this.handleChange}
+          value={village}
         />
+        <Activate activate={this.activate} isActive={isActive} />
         <div>{searching && <span>searching...</span>}</div>
         <div>{villages.length && <span>Total: {villages.length}</span>}</div>
         <Villages villages={villages} />
