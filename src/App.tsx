@@ -18,10 +18,9 @@ const search = (village: string): Promise<Village[]> =>
               )
             : []
         ),
-      Math.floor(Math.random() * 3) * 1000
+      Math.floor(Math.random() * 3) * 1000 + 2000
     )
   );
-
 const Village = ({ id, name }: Village) => (
   <li style={{ width: "300px", textAlign: "left" }} key={id}>
     <span>{name}</span>
@@ -34,10 +33,21 @@ const Villages = ({ villages }: { villages: Village[] }) => (
 const App = () => {
   const [village, setVillage] = useState("");
   const [villages, setVillages] = useState([] as Village[]);
+  const [loading, setLoading] = useState(false);
   useEffect(() => {
-    search(village).then(result => setVillages(result));
+    let didCancel = false;
+    search(village).then(result => {
+      if (!didCancel) {
+        setVillages(result);
+      }
+      setLoading(false);
+    });
+    return () => {
+      didCancel = true;
+    };
   }, [village]);
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLoading(true);
     setVillage(e.target.value);
   };
   return (
@@ -48,6 +58,8 @@ const App = () => {
         onChange={handleChange}
         value={village}
       />
+      <div>{loading && <span>loading...</span>}</div>
+      <div>{villages.length && <span>Total: {villages.length}</span>}</div>
       <Villages villages={villages} />
     </div>
   );
