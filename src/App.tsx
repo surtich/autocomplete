@@ -158,7 +158,7 @@ class App extends React.Component {
   }
 
   render() {
-    const { isActive, searching, village, villages } = this.state;
+    const { isActive, lastSearch, searching, village, villages } = this.state;
     return (
       <div className="App">
         <input
@@ -169,8 +169,16 @@ class App extends React.Component {
         />
         <Activate activate={this.activate} isActive={isActive} />
         <div>{searching && <span>searching...</span>}</div>
-        <div>{villages.length && <span>Total: {villages.length}</span>}</div>
-        <Villages villages={villages} />
+        {isActive || lastSearch === village ? (
+          <div>
+            <div>
+              {villages.length && <span>Total: {villages.length}</span>}
+            </div>
+            <Villages villages={villages} />
+          </div>
+        ) : (
+          <span>Activate to see results</span>
+        )}
       </div>
     );
   }
